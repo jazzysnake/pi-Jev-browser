@@ -125,7 +125,7 @@ test("jev_actions parameters accept the flat action schema", () => {
 			actions: [
 				{ type: "click", x: 1, y: 2 },
 				{ type: "keypress", keys: ["CTRL", "Enter"] },
-				{ type: "drag", path: [[0, 0], { x: 5, y: 5 }] },
+				{ type: "drag", path: [{ x: 0, y: 0 }, { x: 5, y: 5 }] },
 				{ type: "wait", ms: 500 },
 			],
 		}),

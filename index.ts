@@ -159,13 +159,11 @@ const actionSchema = strictObject({
 	button: Type.Optional(StringEnum(["left", "right", "wheel"] as const, { description: 'Mouse button for "click", "double_click" and "drag". Defaults to left.' })),
 	url: Type.Optional(Type.String({ description: 'Destination for "navigate"; subject to allowedOrigins and denyOrigins.' })),
 	path: Type.Optional(
-		Type.Array(
-			Type.Union([
-				strictObject({ x: coordinates, y: coordinates }),
-				Type.Tuple([Type.Number(), Type.Number()]),
-			]),
-			{ description: 'Pointer path for "drag": at least two viewport points, pressed at the first and released at the last.' },
-		),
+		Type.Array(strictObject({ x: coordinates, y: coordinates }), {
+			minItems: 2,
+			description:
+				'Pointer path for "drag": at least two viewport {x, y} points, pressed at the first and released at the last.',
+		}),
 	),
 });
 
