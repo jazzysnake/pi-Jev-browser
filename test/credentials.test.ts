@@ -80,3 +80,43 @@ test("credential file handles JSON syntax, precedence, reloads and missing keys"
 		rmSync(directory, { recursive: true, force: true });
 	}
 });
+
+test("a self-hosted endpoint on loopback needs no TypeSafe key", () => {
+	const directory = mkdtempSync(join(tmpdir(), "pi-jev-browser-local-"));
+	const path = join(directory, "config.json");
+	try {
+		for (const baseUrl of [
+			"http://127.0.0.1:8009",
+			"http://localhost:8009",
+			"http://[::1]:8009",
+		]) {
+			writeFileSync(
+				path,
+				JSON.stringify({ typesafe: { baseUrl, model: "kev-latest" } }),
+			);
+			assert.deepEqual(readJevCredentials({ path, env: {} }), {
+				apiKey: "local",
+				baseUrl,
+				model: "kev-latest",
+			});
+		}
+
+		// A remote endpoint still demands a real key.
+		writeFileSync(
+			path,
+			JSON.stringify({ typesafe: { baseUrl: "https://api.typesafe.ai" } }),
+		);
+		assert.throws(() => readJevCredentials({ path, env: {} }), /TYPESAFE_API_KEY/);
+
+		// An explicit key wins over the local placeholder.
+		writeFileSync(
+			path,
+			JSON.stringify({
+				typesafe: { apiKey: "real-key", baseUrl: "http://127.0.0.1:8009" },
+			}),
+		);
+		assert.equal(readJevCredentials({ path, env: {} }).apiKey, "real-key");
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
+});

@@ -3,6 +3,28 @@ import { configurationError } from "./errors.ts";
 
 const DEFAULT_BASE_URL = "https://api.typesafe.ai";
 const DEFAULT_MODEL = "jev-latest";
+/**
+ * Sent to a self-hosted endpoint on the loopback interface so the SDK's
+ * non-empty-key check passes. Local servers (Kev, Laya, Von) ignore it unless
+ * their own key is configured.
+ */
+const LOCAL_API_KEY = "local";
+
+/** localhost, 127.0.0.0/8, or ::1: a server on this machine, not TypeSafe. */
+function isLoopbackUrl(value: string): boolean {
+	let host: string;
+	try {
+		host = new URL(value).hostname;
+	} catch {
+		return false;
+	}
+	const bare = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
+	return (
+		bare === "localhost" ||
+		bare === "::1" ||
+		/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(bare)
+	);
+}
 
 export interface JevCredentials {
 	apiKey: string;
@@ -26,16 +48,22 @@ export function readJevCredentials(
 	const value = (input: unknown) =>
 		typeof input === "string" ? input.trim() : "";
 
-	const apiKey = value(env.TYPESAFE_API_KEY) || value(typesafe?.apiKey);
+	const baseUrl =
+		value(env.TYPESAFE_BASE_URL) || value(typesafe?.baseUrl) || DEFAULT_BASE_URL;
+	// A local, Jev-compatible server authenticates by nothing or by its own key,
+	// so only a remote endpoint must carry a TypeSafe secret.
+	const apiKey =
+		value(env.TYPESAFE_API_KEY) ||
+		value(typesafe?.apiKey) ||
+		(isLoopbackUrl(baseUrl) ? LOCAL_API_KEY : "");
 	if (!apiKey)
 		throw configurationError(
-			`The jev_run Jev loop requires TYPESAFE_API_KEY in the pi process environment or typesafe.apiKey in ${path}.`,
+			`The jev_run Jev loop requires TYPESAFE_API_KEY in the pi process environment or typesafe.apiKey in ${path}, unless typesafe.baseUrl points at a local server.`,
 		);
 
 	return {
 		apiKey,
-		baseUrl:
-			value(env.TYPESAFE_BASE_URL) || value(typesafe?.baseUrl) || DEFAULT_BASE_URL,
+		baseUrl,
 		model:
 			value(env.TYPESAFE_DEFAULT_MODEL) ||
 			value(typesafe?.model) ||
