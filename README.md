@@ -228,6 +228,7 @@ file.
   "profile": "session",
   "typesafe": { "apiKey": "", "baseUrl": "https://api.typesafe.ai", "model": "jev-latest" },
   "textHelper": { "model": "" },
+  "decisionLog": { "path": "" },
   "desktop": { "requireConfirmation": true }
 }
 ```
@@ -245,9 +246,20 @@ file.
   `profileDir`; `"off"` starts clean every run.
   [docs/reference.md](docs/reference.md#profiles) covers what persists, and what a
   shared profile costs.
+- `decisionLog.path` records every Jev decision — the exact state and typed
+  questions sent, and the answer or error that came back — as one JSON object per
+  line, for training a smaller model later. It is off by default and stays off
+  while `path` is empty. Point it at a directory to write one `<runId>.jsonl` per
+  run, or at a file ending in `.jsonl`/`.ndjson` to append every run to it. A new
+  record is written before the answer is interpreted, so unoffered answers, nonzero
+  refusals and timeouts are captured too, carrying their `latencyMs`. Records
+  contain the page text the decision was made from, so they can hold personal data:
+  the file is created `0600` inside a `0700` directory, and it is your job to keep
+  it out of a repository. Env override: `PI_JEV_BROWSER_DECISION_LOG`.
 
 Environment overrides: `TYPESAFE_API_KEY`, `TYPESAFE_BASE_URL`,
-`TYPESAFE_DEFAULT_MODEL`, `PI_JEV_BROWSER_TEXT_MODEL`, `PI_JEV_BROWSER_CONFIG`.
+`TYPESAFE_DEFAULT_MODEL`, `PI_JEV_BROWSER_TEXT_MODEL`, `PI_JEV_BROWSER_DECISION_LOG`,
+`PI_JEV_BROWSER_CONFIG`.
 Credentials are read on every run, are never passed to Chromium, and never appear in
 tool results. The config path is resolved once when pi starts, so restart pi after
 changing `PI_JEV_BROWSER_CONFIG`.

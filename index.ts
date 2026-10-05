@@ -8,9 +8,14 @@ import { Value } from "typebox/value";
 import { parseActions } from "./src/actions.ts";
 import { findApps, resolveBundleId } from "./src/apps.ts";
 import { isUrlAllowed, readConfig } from "./src/config.ts";
-import { readJevCredentials, readTextHelperModel } from "./src/credentials.ts";
+import { readJevCredentials, readTextHelperModel, type JevCredentials } from "./src/credentials.ts";
 import { configurationError } from "./src/errors.ts";
 import { createJevPolicy, createPiTextGenerator } from "./src/policy.ts";
+import {
+	createDecisionLogger,
+	readDecisionLogConfig,
+	type DecisionLogConfig,
+} from "./src/trace.ts";
 import { DESKTOP_POLICY_OPTIONS, runDesktop } from "./src/desktop-runtime.ts";
 import { PiBrowserManager } from "./src/runtime.ts";
 import type {
@@ -21,6 +26,26 @@ import type {
 
 const manager = new PiBrowserManager();
 const STATUS_KEY = "pi-jev-browser";
+
+/**
+ * The decision log for one run, or undefined when it is not configured. A fresh
+ * logger per run means a fresh run id, so records stay attributable after the
+ * fact. Reading it here, before the browser starts, turns a bad path into a
+ * setup error rather than a run that dies halfway through.
+ */
+function decisionLogger(
+	config: DecisionLogConfig | undefined,
+	host: ToolHost,
+	credentials: JevCredentials,
+) {
+	return config
+		? createDecisionLogger(config, {
+				sessionId: host.sessionId,
+				model: credentials.model,
+				baseUrl: credentials.baseUrl,
+			})
+		: undefined;
+}
 
 /**
  * Origins listed in requireConfirmation need an explicit yes before a browser
@@ -291,6 +316,7 @@ export default function (pi: ExtensionAPI) {
 			// reported as a setup problem instead of a mysterious browser failure.
 			const credentials = readJevCredentials();
 			const textHelperModel = readTextHelperModel();
+			const decisionLog = readDecisionLogConfig();
 			return withStatus(ctx, signal, async (host) => {
 				await confirmOrigins(
 					ctx,
@@ -304,6 +330,7 @@ export default function (pi: ExtensionAPI) {
 					createJevPolicy({
 						credentials,
 						text: createPiTextGenerator(ctx, textHelperModel),
+						logger: decisionLogger(decisionLog, host, credentials),
 					}),
 				);
 				return {
@@ -564,6 +591,7 @@ export default function (pi: ExtensionAPI) {
 			const credentials = readJevCredentials();
 			const textHelperModel = readTextHelperModel();
 			const config = readConfig();
+			const decisionLog = readDecisionLogConfig();
 			const findApp = "findApp" in input ? input.findApp : undefined;
 			return withStatus(ctx, signal, async (host) => {
 				if (findApp !== undefined) {
@@ -594,6 +622,7 @@ export default function (pi: ExtensionAPI) {
 					createJevPolicy({
 						credentials,
 						text: createPiTextGenerator(ctx, textHelperModel),
+						logger: decisionLogger(decisionLog, host, credentials),
 						rules: DESKTOP_POLICY_OPTIONS.rules,
 						planning: input.plan !== false,
 					}),

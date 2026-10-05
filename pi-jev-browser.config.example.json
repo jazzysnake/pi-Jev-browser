@@ -28,6 +28,9 @@
   "textHelper": {
     "model": ""
   },
+  "decisionLog": {
+    "path": ""
+  },
   "desktop": {
     "requireConfirmation": true
   }
